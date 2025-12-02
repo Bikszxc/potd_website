@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { createClient } from '@/utils/supabase/server';
 
 export type Player = {
   steam_id64: string;
@@ -85,6 +86,10 @@ async function fetchSteamAvatars(players: Player[]): Promise<Player[]> {
 
 export async function getLeaderboardData() {
   try {
+    const supabase = await createClient();
+    const { data: blacklistData } = await supabase.from('player_blacklist').select('username');
+    const blacklistedNames = new Set(blacklistData?.map(b => b.username.toLowerCase()) || []);
+
     const playersDir = path.join(process.cwd(), 'public', 'players');
     
     // Ensure directory exists
@@ -101,6 +106,12 @@ export async function getLeaderboardData() {
     for (const entry of entries) {
         if (entry.isDirectory()) {
             const username = entry.name;
+            
+            // Skip if blacklisted (check directory name / username)
+            if (blacklistedNames.has(username.toLowerCase())) {
+                continue;
+            }
+
             const jsonPath = path.join(playersDir, username, `${username}.json`);
             
             try {
@@ -108,6 +119,11 @@ export async function getLeaderboardData() {
                 const stats = await fs.promises.stat(jsonPath); // Get file stats
                 const data = JSON.parse(fileContents);
                 
+                // Double check mapped username
+                if (data.username && blacklistedNames.has(data.username.toLowerCase())) {
+                    continue;
+                }
+
                 // Map new JSON schema to Player type
                 const player: Player = {
                     steam_id64: data.steam?.steamid64 || '',

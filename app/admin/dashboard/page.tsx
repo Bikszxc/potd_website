@@ -49,6 +49,12 @@ export default async function Dashboard() {
     .select('*')
     .order('start_date', { ascending: false });
 
+  // Fetch blacklist
+  const { data: blacklist } = await supabase
+    .from('player_blacklist')
+    .select('*')
+    .order('added_at', { ascending: false });
+
   return (
     <div className="min-h-screen bg-[#191A30] text-white flex">
       {/* Sidebar */}
@@ -84,6 +90,7 @@ export default async function Dashboard() {
           leaderboardConfigs={leaderboardConfigs || []}
           factionScoring={factionScoring}
           seasons={seasons || []}
+          blacklist={blacklist || []}
         />
       </main>
     </div>

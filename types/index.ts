@@ -80,3 +80,10 @@ export type PlayerSnapshot = {
   hours_survived: number;
   economy_earned: number;
 };
+
+export type BlacklistEntry = {
+  id: number;
+  username: string;
+  reason: string | null;
+  added_at: string;
+};

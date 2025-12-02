@@ -6,7 +6,7 @@ import EventManager from './event-manager';
 import RankManager from './rank-manager';
 import DiscountManager from './discount-manager';
 import LeaderboardManager from './leaderboard-manager';
-import { Post, Event, Rank, SaleConfig, LeaderboardConfig, FactionScoreConfig, Season } from '@/types';
+import { Post, Event, Rank, SaleConfig, LeaderboardConfig, FactionScoreConfig, Season, BlacklistEntry } from '@/types';
 import { Radio, Calendar, DollarSign, Tag, Trophy } from 'lucide-react';
 
 export default function DashboardTabs({ 
@@ -16,7 +16,8 @@ export default function DashboardTabs({
   saleConfig,
   leaderboardConfigs,
   factionScoring,
-  seasons
+  seasons,
+  blacklist
 }: { 
   posts: Post[], 
   events: Event[],
@@ -24,7 +25,8 @@ export default function DashboardTabs({
   saleConfig: SaleConfig,
   leaderboardConfigs: LeaderboardConfig[],
   factionScoring: FactionScoreConfig,
-  seasons: Season[]
+  seasons: Season[],
+  blacklist: BlacklistEntry[]
 }) {
   const [activeTab, setActiveTab] = useState<'news' | 'events' | 'donations' | 'discounts' | 'leaderboards'>('news');
 
@@ -89,7 +91,7 @@ export default function DashboardTabs({
 
       {activeTab === 'leaderboards' && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <LeaderboardManager configs={leaderboardConfigs} factionScoring={factionScoring} seasons={seasons} />
+          <LeaderboardManager configs={leaderboardConfigs} factionScoring={factionScoring} seasons={seasons} blacklist={blacklist} />
         </div>
       )}
     </div>
