@@ -52,7 +52,7 @@ export default function ActiveSalesList({ ranks, saleConfig }: { ranks: Rank[], 
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="text-[10px] text-red-400 font-mono uppercase tracking-widest animate-pulse">Active</div>
-                         <form action={clearSale.bind(null, null)}>
+                         <form action={async (formData) => { await clearSale(null, formData); }}>
                             <input type="hidden" name="scope" value="global" />
                             <TerminateButton />
                         </form>
@@ -69,7 +69,7 @@ export default function ActiveSalesList({ ranks, saleConfig }: { ranks: Rank[], 
                             <div className="text-xs font-bold text-[#FED405]">₱{rank.sale_price}</div>
                         </div>
                     </div>
-                    <form action={clearSale.bind(null, null)}>
+                    <form action={async (formData) => { await clearSale(null, formData); }}>
                         <input type="hidden" name="scope" value="specific" />
                         <input type="hidden" name="rank_id" value={rank.id} />
                         <TerminateButton />
