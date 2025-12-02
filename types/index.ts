@@ -12,6 +12,7 @@ export type Post = {
 export type Event = {
   id: number;
   title: string;
+  content: string;
   description: string | null;
   type: 'storyline' | 'side_event';
   image_url?: string | null;
