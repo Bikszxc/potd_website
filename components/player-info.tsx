@@ -306,7 +306,7 @@ export default function PlayerInfo({ player, onClose, configs }: PlayerInfoProps
                                 const renderTrait = (trait: any, i: number, borderColor: string) => {
                                     const displayName = trait.name.split('(')[0].trim();
                                     const formattedType = trait.type.toLowerCase().replace(/ /g, '_');
-                                    const iconPath = `/icons/traits/Trait_${formattedType}.png`;
+                                    const iconPath = `/icons/traits/trait_${formattedType.toLowerCase()}.png`;
                                     const costColor = trait.cost > 0 ? 'text-green-400' : (trait.cost < 0 ? 'text-red-400' : 'text-gray-400');
                                     const costSign = trait.cost > 0 ? '+' : '';
 
