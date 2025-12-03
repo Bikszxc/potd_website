@@ -94,11 +94,10 @@ export async function startNewSeason(prevState: any, formData: FormData) {
         console.log("No active season found to archive.");
     }
 
-    // 3. Fetch Raw Data for Snapshot BEFORE creating the new season
-    // This prevents getLeaderboardData from auto-snapshotting for the new season immediately
-    const currentPlayersForSnapshot = await getLeaderboardData({ raw: true });
-
-    // 4. Create NEW Season
+    // 3. Create NEW Season
+    // We do NOT manually snapshot here anymore. We rely on getLeaderboardData() 
+    // to automatically snapshot players on the first load of the new season.
+    // This prevents race conditions and double-insertions.
     const { data: newSeason, error: createError } = await supabase
         .from('seasons')
         .insert({
@@ -110,24 +109,6 @@ export async function startNewSeason(prevState: any, formData: FormData) {
         .single();
 
     if (createError) throw createError;
-
-    // 5. Snapshot Current State
-    const snapshots = currentPlayersForSnapshot.map(p => ({
-        season_id: newSeason.id,
-        steam_id: p.steam_id64,
-        zombie_kills: p.zombie_kills,
-        player_kills: p.player_kills,
-        hours_survived: p.hours_survived,
-        economy_earned: p.economy_earned_this_season || 0
-    }));
-
-    if (snapshots.length > 0) {
-        const { error: snapshotError } = await supabase
-            .from('player_season_snapshots')
-            .insert(snapshots);
-        
-        if (snapshotError) throw snapshotError;
-    }
 
     revalidatePath('/leaderboards');
     revalidatePath('/admin/dashboard');
