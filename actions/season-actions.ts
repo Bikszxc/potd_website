@@ -94,7 +94,11 @@ export async function startNewSeason(prevState: any, formData: FormData) {
         console.log("No active season found to archive.");
     }
 
-    // 3. Create NEW Season
+    // 3. Fetch Raw Data for Snapshot BEFORE creating the new season
+    // This prevents getLeaderboardData from auto-snapshotting for the new season immediately
+    const currentPlayersForSnapshot = await getLeaderboardData({ raw: true });
+
+    // 4. Create NEW Season
     const { data: newSeason, error: createError } = await supabase
         .from('seasons')
         .insert({
@@ -107,10 +111,7 @@ export async function startNewSeason(prevState: any, formData: FormData) {
 
     if (createError) throw createError;
 
-    // 4. Snapshot Current State
-    // Request RAW data so we snapshot the TRUE lifetime stats, not the pre-calculated season stats
-    const currentPlayersForSnapshot = await getLeaderboardData({ raw: true });
-    
+    // 5. Snapshot Current State
     const snapshots = currentPlayersForSnapshot.map(p => ({
         season_id: newSeason.id,
         steam_id: p.steam_id64,
