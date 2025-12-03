@@ -130,7 +130,7 @@ export async function getLeaderboardData(options?: { raw?: boolean }) {
 
                 // Map new JSON schema to Player type
                 const player: Player = {
-                    steam_id64: data.steam?.steamid64 || '',
+                    steam_id64: String(data.steam?.steamid64 || ''),
                     steam_name: data.steam?.steam_name || '',
                     account_name: data.username || '',
                     character_name: data.character?.name || '',
