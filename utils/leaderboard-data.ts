@@ -183,22 +183,13 @@ export async function getLeaderboardData(options?: { raw?: boolean }) {
             .single();
 
         if (activeSeason) {
-             // DEBUG LOGS
-             console.log(`[getLeaderboardData] Active Season ID: ${activeSeason.id}`);
-
              const { data: existingSnapshots } = await supabase
                 .from('player_season_snapshots')
                 .select('*') // Select all fields to use in calculation
                 .eq('season_id', activeSeason.id);
 
-             if (existingSnapshots && existingSnapshots.length > 0) {
-                 console.log(`[getLeaderboardData] Fetched ${existingSnapshots.length} snapshots.`);
-                 console.log(`[getLeaderboardData] Sample Snapshot:`, existingSnapshots[0]);
-             } else {
-                 console.log(`[getLeaderboardData] No snapshots found for season ${activeSeason.id}.`);
-             }
-
-             const existingSnapshotsMap = new Map(existingSnapshots?.map(s => [s.steam_id, s]));
+             // Robustly handle potential key casing (steam_id vs steamId)
+             const existingSnapshotsMap = new Map(existingSnapshots?.map((s: any) => [s.steam_id || s.steamId, s]));
              
              const newSnapshots = players
                 .filter(p => p.steam_id64 && !existingSnapshotsMap.has(p.steam_id64))
