@@ -46,7 +46,7 @@ export default async function Dashboard() {
   // Fetch seasons
   const { data: seasons } = await supabase
     .from('seasons')
-    .select('*')
+    .select('id, name, start_date, end_date, is_active, final_standings_csv')
     .order('start_date', { ascending: false });
 
   // Fetch blacklist

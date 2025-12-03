@@ -88,7 +88,7 @@ async function fetchSteamAvatars(players: Player[]): Promise<Player[]> {
   }
 }
 
-export async function getLeaderboardData() {
+export async function getLeaderboardData(options?: { raw?: boolean }) {
   try {
     const supabase = await createClient();
     const { data: blacklistData } = await supabase.from('player_blacklist').select('username');
@@ -209,30 +209,29 @@ export async function getLeaderboardData() {
                  newSnapshots.forEach(s => existingSnapshotsMap.set(s.steam_id, s));
              }
 
-             // APPLY SNAPSHOTS TO DATA
+             // APPLY SNAPSHOTS TO DATA (Only if raw is not requested)
              // This converts "Lifetime Stats" to "Season Stats"
-             players = players.map(p => {
-                 const snapshot = existingSnapshotsMap.get(p.steam_id64);
-                 if (!snapshot) return p;
+             if (!options?.raw) {
+                 players = players.map(p => {
+                     const snapshot = existingSnapshotsMap.get(p.steam_id64);
+                     if (!snapshot) return p;
 
-                 // Helper: If current < snapshot, it means they reset/died, so their season stat is just the current value.
-                 // Otherwise, it's Current - Snapshot.
-                 const calcSeasonStat = (current: number, snap: number) => {
-                     if (current < snap) return current;
-                     return current - snap;
-                 };
+                     // Helper: If current < snapshot, it means they reset/died, so their season stat is just the current value.
+                     // Otherwise, it's Current - Snapshot.
+                     const calcSeasonStat = (current: number, snap: number) => {
+                         if (current < snap) return current;
+                         return current - snap;
+                     };
 
-                 return {
-                     ...p,
-                     zombie_kills: calcSeasonStat(p.zombie_kills, snapshot.zombie_kills),
-                     player_kills: calcSeasonStat(p.player_kills, snapshot.player_kills),
-                     hours_survived: calcSeasonStat(p.hours_survived, snapshot.hours_survived),
-                     // Economy is already "earned this season" in the JSON? 
-                     // If 'economy_earned_this_season' is cumulative for the server, we snapshot it.
-                     // If it resets on death, same logic applies.
-                     economy_earned_this_season: calcSeasonStat(p.economy_earned_this_season || 0, snapshot.economy_earned)
-                 };
-             });
+                     return {
+                         ...p,
+                         zombie_kills: calcSeasonStat(p.zombie_kills, snapshot.zombie_kills),
+                         player_kills: calcSeasonStat(p.player_kills, snapshot.player_kills),
+                         hours_survived: calcSeasonStat(p.hours_survived, snapshot.hours_survived),
+                         economy_earned_this_season: calcSeasonStat(p.economy_earned_this_season || 0, snapshot.economy_earned)
+                     };
+                 });
+             }
         }
     } catch (snapshotError) {
         console.error("Error in auto-snapshot logic:", snapshotError);

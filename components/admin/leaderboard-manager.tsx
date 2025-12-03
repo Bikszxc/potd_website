@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useActionState, useEffect } from 'react';
+import { useState, useActionState, useEffect, useMemo } from 'react';
 import { LeaderboardConfig, FactionScoreConfig, Season, BlacklistEntry } from '@/types';
 import { toggleLeaderboard, updateFactionScoring } from '@/actions/leaderboard-actions';
 import { startNewSeason, deleteSeason, endSeason } from '@/actions/season-actions';
 import { addToBlacklist, removeFromBlacklist } from '@/actions/blacklist-actions';
-import { Skull, Crosshair, DollarSign, Flag, Trophy, Calculator, Save, Clock, Calendar, Archive, Download, Play, Trash2, Eye, X, Ban, UserX, StopCircle, type LucideIcon } from 'lucide-react';
+import { Skull, Crosshair, DollarSign, Flag, Trophy, Calculator, Save, Clock, Calendar, Archive, Download, Play, Trash2, Eye, X, Ban, UserX, StopCircle, ChevronUp, ChevronDown, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ICONS: Record<string, LucideIcon> = {
@@ -22,11 +22,86 @@ const COLORS: Record<string, string> = {
     factions: 'text-purple-500'
 };
 
+const handleDownloadCSV = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+
 function SeasonViewerModal({ season, onClose }: { season: Season; onClose: () => void }) {
+    const [sortConfig, setSortConfig] = useState<{ index: number; direction: 'asc' | 'desc' } | null>(null);
+
+    const parsedData = useMemo(() => {
+        if (!season.final_standings_csv) return { headers: [], rows: [] };
+
+        const csv = season.final_standings_csv.trim();
+        const lines = csv.split('\n');
+        if (lines.length === 0) return { headers: [], rows: [] };
+
+        const headers = lines[0].split(',');
+        let rows = lines.slice(1).map(line => {
+            const nameStart = line.indexOf(',"');
+            const nameEnd = line.lastIndexOf('",');
+            
+            if (nameStart === -1 || nameEnd === -1) {
+                return line.split(',');
+            }
+
+            const id = line.substring(0, nameStart);
+            const name = line.substring(nameStart + 2, nameEnd);
+            const rest = line.substring(nameEnd + 2).split(',');
+            
+            return [id, name, ...rest];
+        });
+
+        if (sortConfig !== null) {
+            rows.sort((a, b) => {
+                const valA = a[sortConfig.index];
+                const valB = b[sortConfig.index];
+
+                const numA = parseFloat(valA);
+                const numB = parseFloat(valB);
+
+                // Check if both are valid numbers (and not empty strings which parseFloat might parse weirdly)
+                const isNum = !isNaN(numA) && !isNaN(numB);
+
+                if (isNum) {
+                    return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
+                } else {
+                    return sortConfig.direction === 'asc' 
+                        ? valA.localeCompare(valB) 
+                        : valB.localeCompare(valA);
+                }
+            });
+        }
+
+        return { headers, rows };
+    }, [season.final_standings_csv, sortConfig]);
+
+    const handleSort = (index: number) => {
+        setSortConfig(current => {
+            if (current?.index === index && current.direction === 'desc') {
+                return null; // Reset if clicking desc again
+            }
+            if (current?.index === index) {
+                return { index, direction: 'desc' };
+            }
+            return { index, direction: 'asc' };
+        });
+    };
+
+    const { headers, rows } = parsedData;
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-[#131426] border border-white/10 rounded-lg shadow-2xl max-w-2xl w-full overflow-hidden">
-                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#191A30]">
+            <div className="bg-[#131426] border border-white/10 rounded-lg shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#191A30] flex-shrink-0">
                     <h3 className="text-xl font-bold text-white flex items-center gap-2">
                         <Trophy className="text-[#FED405]" size={24} />
                         {season.name} Standings
@@ -35,8 +110,9 @@ function SeasonViewerModal({ season, onClose }: { season: Season; onClose: () =>
                         <X size={24} />
                     </button>
                 </div>
-                <div className="p-6 space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
+                
+                <div className="p-6 overflow-y-auto custom-scrollbar">
+                    <div className="grid grid-cols-2 gap-4 mb-6">
                         <div className="bg-[#0f1016] p-4 rounded border border-white/5">
                             <div className="text-gray-500 text-xs uppercase tracking-widest mb-1">Duration</div>
                             <div className="text-white font-mono text-sm">
@@ -52,18 +128,54 @@ function SeasonViewerModal({ season, onClose }: { season: Season; onClose: () =>
                     </div>
 
                     {season.final_standings_csv ? (
-                        <div className="bg-[#191A30] p-4 rounded border border-white/10">
-                            <p className="text-sm text-gray-300 mb-4">
-                                Detailed standings for this season are available for download. This CSV file contains the final snapshot of all player stats.
-                            </p>
-                            <a 
-                                href={season.final_standings_csv}
-                                download={`${season.name.replace(/\s+/g, '_')}_standings.csv`}
-                                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-bold uppercase tracking-wide transition-colors"
-                            >
-                                <Download size={16} />
-                                Download CSV Report
-                            </a>
+                        <div className="space-y-4">
+                            <div className="bg-[#0f1016] border border-white/10 rounded overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-[#191A30] text-gray-400 text-xs uppercase font-bold">
+                                            <tr>
+                                                {headers.map((h, i) => (
+                                                    <th 
+                                                        key={i} 
+                                                        className="px-4 py-3 whitespace-nowrap cursor-pointer hover:bg-white/5 transition-colors select-none"
+                                                        onClick={() => handleSort(i)}
+                                                    >
+                                                        <div className="flex items-center gap-1">
+                                                            {h}
+                                                            {sortConfig?.index === i && (
+                                                                sortConfig.direction === 'asc' 
+                                                                    ? <ChevronUp size={14} className="text-[#FED405]" /> 
+                                                                    : <ChevronDown size={14} className="text-[#FED405]" />
+                                                            )}
+                                                        </div>
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5 text-gray-300">
+                                            {rows.map((row, i) => (
+                                                <tr key={i} className="hover:bg-white/5 transition-colors">
+                                                    {row.map((cell, j) => (
+                                                        <td key={j} className="px-4 py-2 font-mono whitespace-nowrap">
+                                                            {j === 1 ? <span className="font-bold text-white">{cell}</span> : cell}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end">
+                                <button 
+                                    onClick={() => handleDownloadCSV(season.final_standings_csv!, `${season.name.replace(/\s+/g, '_')}_standings.csv`)}
+                                    className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-bold uppercase tracking-wide transition-colors"
+                                >
+                                    <Download size={16} />
+                                    Download CSV Report
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <div className="text-center py-8 text-gray-500 italic">
@@ -96,15 +208,6 @@ export default function LeaderboardManager({
       player: factionScoring?.player_kill_multiplier ?? 0,
       economy: factionScoring?.economy_multiplier ?? 0,
       survival: factionScoring?.survival_multiplier ?? 0
-  };
-
-  const handleDownloadCSV = (url: string, filename: string) => {
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
   };
 
   const handleToggle = async (id: string, currentState: boolean) => {

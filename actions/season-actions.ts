@@ -108,7 +108,8 @@ export async function startNewSeason(prevState: any, formData: FormData) {
     if (createError) throw createError;
 
     // 4. Snapshot Current State
-    const currentPlayersForSnapshot = await getLeaderboardData();
+    // Request RAW data so we snapshot the TRUE lifetime stats, not the pre-calculated season stats
+    const currentPlayersForSnapshot = await getLeaderboardData({ raw: true });
     
     const snapshots = currentPlayersForSnapshot.map(p => ({
         season_id: newSeason.id,
