@@ -213,9 +213,17 @@ export async function getLeaderboardData(options?: { raw?: boolean }) {
              // APPLY SNAPSHOTS TO DATA (Only if raw is not requested)
              // This converts "Lifetime Stats" to "Season Stats"
              if (!options?.raw) {
+                 let logCount = 0;
                  players = players.map(p => {
                      const snapshot = existingSnapshotsMap.get(p.steam_id64);
                      if (!snapshot) return p;
+
+                     if (logCount < 3) {
+                         console.log(`[Calc Debug] ID: ${p.steam_id64}`);
+                         console.log(`- Hours: Current=${p.hours_survived}, Snap=${snapshot.hours_survived}`);
+                         console.log(`- ZK: Current=${p.zombie_kills}, Snap=${snapshot.zombie_kills}`);
+                         logCount++;
+                     }
 
                      // Helper: If current < snapshot, it means they reset/died, so their season stat is just the current value.
                      // Otherwise, it's Current - Snapshot.
