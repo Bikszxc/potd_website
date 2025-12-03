@@ -137,6 +137,77 @@ export async function startNewSeason(prevState: any, formData: FormData) {
   }
 }
 
+export async function endSeason(prevState: any, formData: FormData) {
+    const supabase = await createClient();
+
+    try {
+        // 1. Fetch current active season
+        const { data: activeSeason } = await supabase
+            .from('seasons')
+            .select('*')
+            .eq('is_active', true)
+            .single();
+
+        if (!activeSeason) {
+            return { message: 'No active season to end', success: false };
+        }
+
+        console.log(`Ending active season: ${activeSeason.name} (${activeSeason.id})`);
+
+        // Fetch snapshots for the active season
+        const { data: snapshots } = await supabase
+            .from('player_season_snapshots')
+            .select('*')
+            .eq('season_id', activeSeason.id);
+        
+        // Fetch current JSON data
+        const currentPlayers = await getLeaderboardData();
+
+        // Generate CSV
+        let csvContent = "SteamID,Name,Zombie Kills,Player Kills,Hours Survived,Economy Earned\n";
+        
+        currentPlayers.forEach(p => {
+            const snapshot = snapshots?.find(s => s.steam_id === p.steam_id64);
+            
+            // Helper to calculate diff with reset protection
+            const calculateDiff = (current: number, snap: number) => {
+                if (current < snap) return current;
+                return current - snap;
+            };
+
+            const zk = calculateDiff(p.zombie_kills, snapshot?.zombie_kills || 0);
+            const pk = calculateDiff(p.player_kills, snapshot?.player_kills || 0);
+            const hours = calculateDiff(p.hours_survived, snapshot?.hours_survived || 0);
+            const eco = calculateDiff((p.economy_earned_this_season || 0), (snapshot?.economy_earned || 0));
+
+            csvContent += `${p.steam_id64},"${p.account_name}",${zk},${pk},${hours.toFixed(2)},${eco}\n`;
+        });
+
+        // Close the active season
+        const { error: updateError } = await supabase
+            .from('seasons')
+            .update({ 
+                is_active: false, 
+                end_date: new Date().toISOString(),
+                final_standings_csv: csvContent 
+            })
+            .eq('id', activeSeason.id);
+
+        if (updateError) {
+            console.error("Failed to end season:", updateError);
+            throw updateError;
+        }
+
+        revalidatePath('/leaderboards');
+        revalidatePath('/admin/dashboard');
+        return { message: `Season "${activeSeason.name}" ended successfully!`, success: true };
+
+    } catch (e: any) {
+        console.error("End Season Error:", e);
+        return { message: e.message || 'Failed to end season', success: false };
+    }
+}
+
 export async function deleteSeason(prevState: any, formData: FormData) {
     const id = formData.get('season_id') as string;
     if (!id) return { message: 'Season ID required', success: false };

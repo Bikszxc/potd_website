@@ -3,9 +3,9 @@
 import { useState, useActionState, useEffect } from 'react';
 import { LeaderboardConfig, FactionScoreConfig, Season, BlacklistEntry } from '@/types';
 import { toggleLeaderboard, updateFactionScoring } from '@/actions/leaderboard-actions';
-import { startNewSeason, deleteSeason } from '@/actions/season-actions';
+import { startNewSeason, deleteSeason, endSeason } from '@/actions/season-actions';
 import { addToBlacklist, removeFromBlacklist } from '@/actions/blacklist-actions';
-import { Skull, Crosshair, DollarSign, Flag, Trophy, Calculator, Save, Clock, Calendar, Archive, Download, Play, Trash2, Eye, X, Ban, UserX, type LucideIcon } from 'lucide-react';
+import { Skull, Crosshair, DollarSign, Flag, Trophy, Calculator, Save, Clock, Calendar, Archive, Download, Play, Trash2, Eye, X, Ban, UserX, StopCircle, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 const ICONS: Record<string, LucideIcon> = {
@@ -119,6 +119,7 @@ export default function LeaderboardManager({
   const [updateState, updateAction, isUpdatePending] = useActionState(updateFactionScoring, null);
   const [startSeasonState, startSeasonAction, isStartSeasonPending] = useActionState(startNewSeason, null);
   const [deleteSeasonState, deleteSeasonAction, isDeletePending] = useActionState(deleteSeason, null);
+  const [endSeasonState, endSeasonAction, isEndSeasonPending] = useActionState(endSeason, null);
   const [addBlacklistState, addBlacklistAction, isAddBlacklistPending] = useActionState(addToBlacklist, null);
   const [removeBlacklistState, removeBlacklistAction, isRemoveBlacklistPending] = useActionState(removeFromBlacklist, null);
 
@@ -145,6 +146,14 @@ export default function LeaderboardManager({
           toast.error(deleteSeasonState.message);
       }
   }, [deleteSeasonState]);
+
+  useEffect(() => {
+      if (endSeasonState?.success) {
+          toast.success(endSeasonState.message);
+      } else if (endSeasonState?.success === false) {
+          toast.error(endSeasonState.message);
+      }
+  }, [endSeasonState]);
 
   useEffect(() => {
     if (addBlacklistState?.success) {
@@ -338,7 +347,24 @@ export default function LeaderboardManager({
                             <div className="flex items-center justify-between mb-4">
                                 <h4 className="text-sm font-bold text-white uppercase">Current Status</h4>
                                 {activeSeason ? (
-                                    <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-1 rounded font-bold uppercase tracking-wider">Active: {activeSeason.name}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-1 rounded font-bold uppercase tracking-wider">Active: {activeSeason.name}</span>
+                                        <form action={endSeasonAction}>
+                                            <button 
+                                                type="submit" 
+                                                disabled={isEndSeasonPending}
+                                                className="p-1 text-red-500 hover:text-red-400 transition-colors disabled:opacity-50" 
+                                                title="End Season"
+                                                onClick={(e) => {
+                                                    if(!confirm("Are you sure you want to END this season? This will archive the current standings and disable leaderboard tracking until a new season is started.")) {
+                                                        e.preventDefault();
+                                                    }
+                                                }}
+                                            >
+                                                <StopCircle size={16} />
+                                            </button>
+                                        </form>
+                                    </div>
                                 ) : (
                                     <span className="text-[10px] bg-red-500/20 text-red-500 px-2 py-1 rounded font-bold uppercase tracking-wider">No Active Season</span>
                                 )}

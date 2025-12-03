@@ -165,6 +165,43 @@ export async function getLeaderboardData() {
             }
         }
     }
+
+    // Auto-Snapshot Logic for Active Season
+    try {
+        const { data: activeSeason } = await supabase
+            .from('seasons')
+            .select('id')
+            .eq('is_active', true)
+            .single();
+
+        if (activeSeason) {
+             const { data: existingSnapshots } = await supabase
+                .from('player_season_snapshots')
+                .select('steam_id')
+                .eq('season_id', activeSeason.id);
+
+             const existingSteamIds = new Set(existingSnapshots?.map(s => s.steam_id) || []);
+             
+             const newSnapshots = players
+                .filter(p => p.steam_id64 && !existingSteamIds.has(p.steam_id64))
+                .map(p => ({
+                    season_id: activeSeason.id,
+                    steam_id: p.steam_id64,
+                    zombie_kills: p.zombie_kills,
+                    player_kills: p.player_kills,
+                    hours_survived: p.hours_survived,
+                    economy_earned: p.economy_earned_this_season || 0
+                }));
+
+             if (newSnapshots.length > 0) {
+                 console.log(`Creating ${newSnapshots.length} new snapshots for active season ${activeSeason.id}`);
+                 await supabase.from('player_season_snapshots').insert(newSnapshots);
+             }
+        }
+    } catch (snapshotError) {
+        console.error("Error in auto-snapshot logic:", snapshotError);
+        // Don't fail the whole leaderboard load just because snapshotting failed
+    }
     
     return await fetchSteamAvatars(players);
 
