@@ -85,45 +85,11 @@ export default async function LeaderboardsPage() {
   const { data: configs } = await supabase.from('leaderboard_config').select('*').order('display_order');
   const { data: factionScoring } = await supabase.from('faction_score_config').select('*').single();
   
-  // Fetch Active Season and Snapshots
+  // Fetch Active Season for Display Info Only
   const { data: activeSeason } = await supabase.from('seasons').select('*').eq('is_active', true).single();
-  const { data: snapshots } = activeSeason 
-      ? await supabase.from('player_season_snapshots').select('*').eq('season_id', activeSeason.id)
-      : { data: [] };
 
-  // --- Calculate Season Adjusted Stats ---
-  const seasonPlayers = players.map(p => {
-      const snapshot = snapshots?.find(s => s.steam_id === p.steam_id64);
-      
-      // Helper to calculate diff with reset protection
-      const calculateDiff = (current: number, snap: number) => {
-          // If current is less than snapshot, assume a reset (death) happened, so new progress is just 'current'
-          // effectively treating snapshot as 0 for this new life.
-          if (current < snap) return current;
-          return current - snap;
-      };
-
-      const adjustedZombieKills = snapshot ? calculateDiff(p.zombie_kills, snapshot.zombie_kills) : p.zombie_kills;
-      const adjustedPlayerKills = snapshot ? calculateDiff(p.player_kills, snapshot.player_kills) : p.player_kills;
-      const adjustedHours = snapshot ? calculateDiff(p.hours_survived, snapshot.hours_survived) : p.hours_survived;
-      
-      // For economy, we track 'earned'. Logic same as above.
-      const currentEarned = p.economy_earned_this_season || 0;
-      const snapEarned = snapshot?.economy_earned || 0;
-      const adjustedEarned = snapshot ? calculateDiff(currentEarned, snapEarned) : currentEarned;
-
-      return {
-          ...p,
-          zombie_kills: adjustedZombieKills,
-          player_kills: adjustedPlayerKills,
-          hours_survived: adjustedHours,
-          economy_earned_this_season: adjustedEarned,
-          lifetime_zombie_kills: p.zombie_kills,
-          lifetime_player_kills: p.player_kills,
-          lifetime_hours_survived: p.hours_survived,
-          lifetime_economy_earned: p.economy_earned_this_season
-      };
-  });
+  // Players data is already processed with Season Stats and Lifetime Stats by getLeaderboardData
+  const seasonPlayers = players; 
 
   // --- File Date Logic ---
   let lastUpdatedDate: Date | null = null;

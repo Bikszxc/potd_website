@@ -123,53 +123,8 @@ export default function LeaderboardManager({
   const [addBlacklistState, addBlacklistAction, isAddBlacklistPending] = useActionState(addToBlacklist, null);
   const [removeBlacklistState, removeBlacklistAction, isRemoveBlacklistPending] = useActionState(removeFromBlacklist, null);
 
-  useEffect(() => {
-      if (updateState?.success) {
-          toast.success(updateState.message);
-      } else if (updateState?.success === false) {
-          toast.error(updateState.message);
-      }
-  }, [updateState]);
-
-  useEffect(() => {
-      if (startSeasonState?.success) {
-          toast.success(startSeasonState.message);
-      } else if (startSeasonState?.success === false) {
-          toast.error(startSeasonState.message);
-      }
-  }, [startSeasonState]);
-
-  useEffect(() => {
-      if (deleteSeasonState?.success) {
-          toast.success(deleteSeasonState.message);
-      } else if (deleteSeasonState?.success === false) {
-          toast.error(deleteSeasonState.message);
-      }
-  }, [deleteSeasonState]);
-
-  useEffect(() => {
-      if (endSeasonState?.success) {
-          toast.success(endSeasonState.message);
-      } else if (endSeasonState?.success === false) {
-          toast.error(endSeasonState.message);
-      }
-  }, [endSeasonState]);
-
-  useEffect(() => {
-    if (addBlacklistState?.success) {
-      toast.success(addBlacklistState.message);
-    } else if (addBlacklistState?.success === false) {
-      toast.error(addBlacklistState.message);
-    }
-  }, [addBlacklistState]);
-
-  useEffect(() => {
-    if (removeBlacklistState?.success) {
-      toast.success(removeBlacklistState.message);
-    } else if (removeBlacklistState?.success === false) {
-      toast.error(removeBlacklistState.message);
-    }
-  }, [removeBlacklistState]);
+  const globalStatusConfig = configs.find(c => c.id === 'global_status');
+  const visibleConfigs = configs.filter(c => c.id !== 'global_status').sort((a, b) => a.display_order - b.display_order);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
@@ -178,6 +133,36 @@ export default function LeaderboardManager({
         {/* LEFT COLUMN: CONFIGURATION */}
         <div className="space-y-6">
             
+            {/* Global Master Switch */}
+            {globalStatusConfig && (
+                <div className="bg-[#131426] p-5 border border-white/5 rounded-sm relative overflow-hidden">
+                     <div className={`absolute inset-0 opacity-5 pointer-events-none ${globalStatusConfig.enabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                     <div className="relative flex items-center justify-between">
+                        <div>
+                            <h3 className="text-xl font-bold text-white uppercase flex items-center gap-2">
+                                <Trophy size={24} className={globalStatusConfig.enabled ? "text-green-500" : "text-red-500"} />
+                                Public Leaderboards
+                            </h3>
+                            <p className="text-gray-400 text-sm">
+                                {globalStatusConfig.enabled 
+                                    ? "Leaderboards are currently visible to the public." 
+                                    : "Leaderboards are currently OFFLINE (Maintenance Mode)."}
+                            </p>
+                        </div>
+                        
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                checked={globalStatusConfig.enabled}
+                                onChange={() => handleToggle(globalStatusConfig.id, globalStatusConfig.enabled)}
+                                className="sr-only peer"
+                            />
+                            <div className="w-14 h-7 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
+                        </label>
+                     </div>
+                </div>
+            )}
+
             {/* Visibility Toggles */}
             <div className="bg-[#131426] p-5 border border-white/5 rounded-sm">
                 <div className="border-b border-white/5 pb-3 mb-4">
@@ -188,7 +173,7 @@ export default function LeaderboardManager({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {configs.sort((a, b) => a.display_order - b.display_order).map(config => {
+                    {visibleConfigs.map(config => {
                         const Icon = ICONS[config.id] || Trophy;
                         const colorClass = COLORS[config.id] || 'text-white';
 

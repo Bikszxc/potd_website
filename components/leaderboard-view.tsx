@@ -89,6 +89,20 @@ const TABS = [
 ] as const;
 
 export default function LeaderboardView({ topZombieKills, topPlayerKills, topRich, topFactions, players, configs, factionScoring }: LeaderboardViewProps) {
+  // Check Global Status First
+  const globalConfig = configs.find(c => c.id === 'global_status');
+  const isGlobalEnabled = globalConfig ? globalConfig.enabled : true; // Default to true for backward compatibility
+
+  if (!isGlobalEnabled) {
+      return (
+          <div className="flex flex-col items-center justify-center py-24 text-gray-500">
+              <Trophy size={48} className="mb-4 opacity-50" />
+              <h3 className="text-xl font-bold text-white">Leaderboards Offline</h3>
+              <p className="text-sm">Ranking systems are currently disabled.</p>
+          </div>
+      );
+  }
+
   // Filter and Sort Tabs based on Configs
   const visibleTabs = TABS.filter(tab => {
       if (!configs || configs.length === 0) return true; // Default to showing all if no config loaded yet
