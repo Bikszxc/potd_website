@@ -94,8 +94,7 @@ export async function getLeaderboardData() {
     const { data: blacklistData } = await supabase.from('player_blacklist').select('username');
     const blacklistedNames = new Set(blacklistData?.map(b => b.username.toLowerCase()) || []);
 
-    // const playersDir = path.join('/home/pzserver/Zomboid/Lua/LeaderboardsJSON/players');
-      const playersDir = path.join(process.cwd(), 'public', 'players');
+    const playersDir = path.join('/home/pzserver/Zomboid/Lua/LeaderboardsJSON/players');
     
     // Ensure directory exists
     try {
