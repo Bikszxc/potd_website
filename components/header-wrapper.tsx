@@ -54,7 +54,7 @@ export default function HeaderWrapper({ status, isSaleActive }: { status: Server
           
           {/* Desktop Button */}
           <a 
-            href="#" 
+            href="https://discord.gg/Y2JDpSHqP9"
             className="hidden md:block bg-[#FED405] text-[#191A30] px-4 py-2 text-sm font-bold uppercase tracking-wide hover:bg-[#e5c004] transition-colors clip-path-slant"
             style={{ clipPath: 'polygon(10% 0, 100% 0, 100% 80%, 90% 100%, 0 100%, 0 20%)' }}
           >
@@ -88,7 +88,7 @@ export default function HeaderWrapper({ status, isSaleActive }: { status: Server
               
               <div className="pt-2">
                  <a 
-                    href="#" 
+                    href="https://discord.gg/Y2JDpSHqP9"
                     className="block w-full bg-[#FED405] text-[#191A30] px-4 py-3 text-center text-sm font-bold uppercase tracking-wide hover:bg-[#e5c004] transition-colors"
                   >
                     Join Discord
