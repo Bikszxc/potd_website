@@ -1,9 +1,15 @@
-import fs from 'fs';
-import path from 'path';
 import { getLeaderboardData, Faction, Player } from '@/utils/leaderboard-data';
 import Header from '@/components/header';
 import Footer from '@/components/footer';
 import LeaderboardView from '@/components/leaderboard-view';
+import { Metadata } from 'next';
+
+export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Leaderboards - Pinya of The Dead',
+  description: 'Top survivors, faction rankings, and server statistics.',
+};
 import { Clock, Construction, Lock, Trophy } from 'lucide-react';
 import { createClient } from '@/utils/supabase/server';
 
@@ -91,33 +97,14 @@ export default async function LeaderboardsPage() {
   // Players data is already processed with Season Stats and Lifetime Stats by getLeaderboardData
   const seasonPlayers = players; 
 
-  // --- File Date Logic ---
+  // --- Last Update Logic ---
+  // Determine the most recent update time from the players list
   let lastUpdatedDate: Date | null = null;
-  try {
-    const playersDir = path.join(process.cwd(), 'public', 'players');
-    // Check if dir exists
-    await fs.promises.access(playersDir);
-    
-    const entries = await fs.promises.readdir(playersDir, { withFileTypes: true });
-    let maxTime = 0;
-    
-    for (const entry of entries) {
-        if (entry.isDirectory()) {
-            const userFile = path.join(playersDir, entry.name, `${entry.name}.json`);
-            try {
-                const stats = await fs.promises.stat(userFile);
-                if (stats.mtimeMs > maxTime) {
-                    maxTime = stats.mtimeMs;
-                }
-            } catch {}
-        }
-    }
-    
-    if (maxTime > 0) {
-        lastUpdatedDate = new Date(maxTime);
-    }
-  } catch (e) {
-    // console.error("Error reading players stats:", e);
+  if (seasonPlayers.length > 0) {
+      const maxTime = Math.max(...seasonPlayers.map(p => p.last_update_unix || 0));
+      if (maxTime > 0) {
+          lastUpdatedDate = new Date(maxTime);
+      }
   }
 
   // --- Faction Logic ---

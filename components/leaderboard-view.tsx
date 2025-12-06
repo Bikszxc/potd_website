@@ -309,7 +309,7 @@ export default function LeaderboardView({ topZombieKills, topPlayerKills, topRic
 
                                     return (
                                         <ListItem
-                                            key={type === 'player' ? (item as Player).steam_id64 : (item as Faction).name}
+                                            key={type === 'player' ? ((item as Player).account_name || `${(item as Player).steam_id64}_${index}`) : (item as Faction).name}
                                             item={item}
                                             rank={realRank}
                                             type={type}

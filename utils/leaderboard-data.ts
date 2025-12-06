@@ -94,54 +94,44 @@ export async function getLeaderboardData(options?: { raw?: boolean }) {
     const { data: blacklistData } = await supabase.from('player_blacklist').select('username');
     const blacklistedNames = new Set(blacklistData?.map(b => b.username.toLowerCase()) || []);
 
-    const playersDir = path.join('/home/pzserver/Zomboid/Lua/LeaderboardsJSON/players');
-    
-    // Ensure directory exists
-    try {
-        await fs.promises.access(playersDir);
-    } catch {
-        console.warn("Players directory not found:", playersDir);
-        return [];
-    }
-
-    const entries = await fs.promises.readdir(playersDir, { withFileTypes: true });
     let players: Player[] = [];
+    let usedRemote = false;
 
-    for (const entry of entries) {
-        if (entry.isDirectory()) {
-            const username = entry.name;
-            
-            // Skip if blacklisted (check directory name / username)
-            if (blacklistedNames.has(username.toLowerCase())) {
-                continue;
-            }
+    // 1. Try Supabase Table First (Remote/Primary Method)
+    try {
+        // console.log("Fetching leaderboard data from Supabase 'leaderboard_imports'...");
+        const { data: remoteData } = await supabase
+            .from('leaderboard_imports')
+            .select('*');
 
-            const jsonPath = path.join(playersDir, username, `${username}.json`);
-            
-            try {
-                const fileContents = await fs.promises.readFile(jsonPath, 'utf8');
-                const stats = await fs.promises.stat(jsonPath); // Get file stats
-                const data = JSON.parse(fileContents);
+        if (remoteData && remoteData.length > 0) {
+            usedRemote = true;
+            players = remoteData.map((row: any) => {
+                const data = row.data; // The raw JSON is in the 'data' column
+                const username = row.username || data.username || '';
+
+                if (blacklistedNames.has(username.toLowerCase())) {
+                    return null;
+                }
                 
-                // Double check mapped username
-                if (data.username && blacklistedNames.has(data.username.toLowerCase())) {
-                    continue;
+                 if (data.username && blacklistedNames.has(data.username.toLowerCase())) {
+                    return null;
                 }
 
-                // Map new JSON schema to Player type
-                const player: Player = {
-                    steam_id64: String(data.steam?.steamid64 || ''),
+                // Map raw JSON to Player type
+                return {
+                    steam_id64: String(row.steam_id || data.steam?.steamid64 || ''),
                     steam_name: data.steam?.steam_name || '',
-                    account_name: data.username || '',
+                    account_name: username,
                     character_name: data.character?.name || '',
                     profession: data.character?.profession || '',
                     gender: data.character?.gender || '',
-                    is_alive: true, // Defaulting as not provided in new JSON
+                    is_alive: true,
                     hours_survived: data.hours_survived || 0,
                     days_survived: (data.hours_survived || 0) / 24,
                     zombie_kills: data.kills?.zombies || 0,
                     player_kills: data.kills?.survivors || 0,
-                    favorite_weapon_name: '', // Not provided
+                    favorite_weapon_name: '',
                     traits: data.traits || [],
                     faction_name: data.faction?.name || null,
                     faction_tag: data.faction?.tag || null,
@@ -153,24 +143,100 @@ export async function getLeaderboardData(options?: { raw?: boolean }) {
                         : {},
                     economy: {
                         primaryCurrency: {
-                            bank: 0, // Not split in new JSON
+                            bank: 0,
                             wallet: data.economy?.total || 0,
                             total: data.economy?.total || 0
                         }
                     },
                     economy_earned_this_season: data.economy?.earned || 0,
-                    last_update_unix: stats.mtimeMs, // Use file modification time
-                    lifetime_hours_survived: data.hours_survived || 0, // Store raw value
+                    last_update_unix: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
+                    lifetime_hours_survived: data.hours_survived || 0,
                     lifetime_zombie_kills: data.kills?.zombies || 0,
                     lifetime_player_kills: data.kills?.survivors || 0,
                     lifetime_economy_earned: data.economy?.earned || 0
                 };
+            }).filter(Boolean) as Player[];
+        }
+    } catch (err) {
+        console.error("Failed to fetch from Supabase:", err);
+    }
 
-                players.push(player);
-            } catch (e) {
-                // Ignore missing files or parse errors for individual users
-                // console.warn(`Could not read data for user ${username}:`, e);
+    // 2. Fallback to Local File System (Legacy/Dev Method) if Supabase failed or empty
+    if (!usedRemote) {
+        const playersDir = path.join('/home/pzserver/Zomboid/Lua/LeaderboardsJSON/players');
+        
+        try {
+            await fs.promises.access(playersDir);
+            const entries = await fs.promises.readdir(playersDir, { withFileTypes: true });
+            
+            for (const entry of entries) {
+                if (entry.isDirectory()) {
+                    const username = entry.name;
+                    
+                    // Skip if blacklisted (check directory name / username)
+                    if (blacklistedNames.has(username.toLowerCase())) {
+                        continue;
+                    }
+
+                    const jsonPath = path.join(playersDir, username, `${username}.json`);
+                    
+                    try {
+                        const fileContents = await fs.promises.readFile(jsonPath, 'utf8');
+                        const stats = await fs.promises.stat(jsonPath); // Get file stats
+                        const data = JSON.parse(fileContents);
+                        
+                        // Double check mapped username
+                        if (data.username && blacklistedNames.has(data.username.toLowerCase())) {
+                            continue;
+                        }
+
+                        // Map new JSON schema to Player type
+                        const player: Player = {
+                            steam_id64: String(data.steam?.steamid64 || ''),
+                            steam_name: data.steam?.steam_name || '',
+                            account_name: data.username || '',
+                            character_name: data.character?.name || '',
+                            profession: data.character?.profession || '',
+                            gender: data.character?.gender || '',
+                            is_alive: true, // Defaulting as not provided in new JSON
+                            hours_survived: data.hours_survived || 0,
+                            days_survived: (data.hours_survived || 0) / 24,
+                            zombie_kills: data.kills?.zombies || 0,
+                            player_kills: data.kills?.survivors || 0,
+                            favorite_weapon_name: '', // Not provided
+                            traits: data.traits || [],
+                            faction_name: data.faction?.name || null,
+                            faction_tag: data.faction?.tag || null,
+                            skills: Array.isArray(data.skills) 
+                                ? data.skills.reduce((acc: any, skill: any) => {
+                                    acc[skill.name] = { level: skill.level };
+                                    return acc;
+                                }, {}) 
+                                : {},
+                            economy: {
+                                primaryCurrency: {
+                                    bank: 0, // Not split in new JSON
+                                    wallet: data.economy?.total || 0,
+                                    total: data.economy?.total || 0
+                                }
+                            },
+                            economy_earned_this_season: data.economy?.earned || 0,
+                            last_update_unix: stats.mtimeMs, // Use file modification time
+                            lifetime_hours_survived: data.hours_survived || 0, // Store raw value
+                            lifetime_zombie_kills: data.kills?.zombies || 0,
+                            lifetime_player_kills: data.kills?.survivors || 0,
+                            lifetime_economy_earned: data.economy?.earned || 0
+                        };
+
+                        players.push(player);
+                    } catch (e) {
+                        // Ignore missing files or parse errors for individual users
+                        // console.warn(`Could not read data for user ${username}:`, e);
+                    }
+                }
             }
+        } catch {
+            // console.warn("Players directory not found:", playersDir);
         }
     }
 
@@ -188,14 +254,34 @@ export async function getLeaderboardData(options?: { raw?: boolean }) {
                 .select('*') // Select all fields to use in calculation
                 .eq('season_id', activeSeason.id);
 
-             // Robustly handle potential key casing (steam_id vs steamId)
-             const existingSnapshotsMap = new Map(existingSnapshots?.map((s: any) => [s.steam_id || s.steamId, s]));
+             // HYBRID LOOKUP STRATEGY (To support migration during active season)
+             const snapshotByUsername = new Map();
+             const snapshotBySteamId = new Map();
+
+             existingSnapshots?.forEach((s: any) => {
+                 if (s.username) {
+                     snapshotByUsername.set(s.username, s);
+                 } else if (s.steam_id) {
+                     // Only map by SteamID if username is missing (Legacy Snapshot)
+                     snapshotBySteamId.set(s.steam_id, s);
+                 }
+             });
              
-             const newSnapshots = players
-                .filter(p => p.steam_id64 && !existingSnapshotsMap.has(p.steam_id64))
-                .map(p => ({
+             // Identify players who need a snapshot
+             // A player needs a snapshot if they are NOT in username map AND NOT in legacy steam map
+             const candidates = players.filter(p => {
+                 const hasUsernameSnap = p.account_name && snapshotByUsername.has(p.account_name);
+                 const hasLegacySnap = p.steam_id64 && snapshotBySteamId.has(p.steam_id64);
+                 return !hasUsernameSnap && !hasLegacySnap;
+             });
+             
+             // Deduplicate candidates by username
+             const uniqueCandidates = Array.from(new Map(candidates.map(p => [p.account_name, p])).values());
+
+             const newSnapshots = uniqueCandidates.map(p => ({
                     season_id: activeSeason.id,
                     steam_id: p.steam_id64,
+                    username: p.account_name,
                     zombie_kills: p.zombie_kills,
                     player_kills: p.player_kills,
                     hours_survived: p.hours_survived,
@@ -206,23 +292,48 @@ export async function getLeaderboardData(options?: { raw?: boolean }) {
                  console.log(`Creating ${newSnapshots.length} new snapshots for active season ${activeSeason.id}`);
                  await supabase.from('player_season_snapshots').insert(newSnapshots);
                  
-                 // Add new snapshots to the set for the calculation step below
-                 newSnapshots.forEach(s => existingSnapshotsMap.set(s.steam_id, s));
+                 // Add new snapshots to the map so they are used immediately below
+                 newSnapshots.forEach(s => snapshotByUsername.set(s.username, s));
              }
 
              // APPLY SNAPSHOTS TO DATA (Only if raw is not requested)
-             // This converts "Lifetime Stats" to "Season Stats"
              if (!options?.raw) {
                  players = players.map(p => {
-                     const snapshot = existingSnapshotsMap.get(p.steam_id64);
+                     // Lookup: Try Username first, then Legacy SteamID
+                     let snapshot = snapshotByUsername.get(p.account_name);
+                     if (!snapshot) {
+                         snapshot = snapshotBySteamId.get(p.steam_id64);
+                     }
+
                      if (!snapshot) return p;
 
                      // Helper: Calculates season progress.
                      // Handles floating point precision errors where snap might be infinitesimally larger than current.
+                     
+                     // ROLLBACK DETECTION:
+                     // If hours_survived is close to the snapshot (< 10% difference) but lower, 
+                     // it's likely a server rollback, not a death.
+                     // Death would reset hours to ~0.
+                     let isRollback = false;
+                     if (p.hours_survived < snapshot.hours_survived && snapshot.hours_survived > 5) {
+                        const ratio = p.hours_survived / snapshot.hours_survived;
+                        // If we have > 90% of our previous hours, it's a rollback.
+                        if (ratio > 0.90) isRollback = true;
+                     }
+
                      const calcSeasonStat = (current: number, snap: number) => {
-                         // Only assume a reset (death) if current is significantly smaller (e.g. > 0.1 difference)
-                         if (current < (snap - 0.1)) return current;
-                         return Math.max(0, current - snap);
+                         // Normal Progress
+                         if (current >= snap) return current - snap;
+                         
+                         // If it's a confirmed rollback (based on hours), return 0 progress
+                         if (isRollback) return 0;
+                         
+                         // Fallback Heuristic: If individual stat is very close (>95%) to snapshot and large,
+                         // treat as rollback even if hours didn't trigger (safety net).
+                         if (snap > 100 && current > (snap * 0.95)) return 0;
+
+                         // Otherwise, assume Death (Reset) -> Return new current value
+                         return current;
                      };
 
                      return {

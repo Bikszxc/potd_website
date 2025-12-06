@@ -191,9 +191,9 @@ export default function SearchView({
                 ))}
 
                 {/* Players */}
-                {(filter === 'all' || filter === 'player') && filteredPlayers.map(player => (
+                {(filter === 'all' || filter === 'player') && filteredPlayers.map((player, index) => (
                     <div 
-                        key={`player-${player.steam_id64}`}
+                        key={`player-${player.account_name || player.steam_id64}-${index}`}
                         onClick={() => setSelectedPlayer(player)}
                         className="bg-[#131426] border border-white/5 hover:border-[#FED405]/50 p-6 rounded-sm cursor-pointer group transition-all hover:bg-[#1a1c2e] hover:-translate-y-1 hover:shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-500"
                     >

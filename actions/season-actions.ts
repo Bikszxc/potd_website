@@ -59,12 +59,27 @@ export async function startNewSeason(prevState: any, formData: FormData) {
         let csvContent = "SteamID,Name,Zombie Kills,Player Kills,Hours Survived,Economy Earned\n";
         
         currentPlayers.forEach(p => {
-            const snapshot = snapshots?.find(s => s.steam_id === p.steam_id64);
+            // Find snapshot: Try username first, then fallback to legacy steam_id (only if snapshot has no username)
+            const snapshot = snapshots?.find(s => 
+                s.username === p.account_name || 
+                (!s.username && s.steam_id === p.steam_id64)
+            );
             
             // Helper to calculate diff with reset protection (Same as frontend)
+            // ROLLBACK DETECTION:
+            let isRollback = false;
+            const snapHours = snapshot?.hours_survived || 0;
+            if (p.hours_survived < snapHours && snapHours > 5) {
+                const ratio = p.hours_survived / snapHours;
+                if (ratio > 0.90) isRollback = true;
+            }
+
             const calculateDiff = (current: number, snap: number) => {
-                if (current < snap) return current;
-                return current - snap;
+                if (current >= snap) return current - snap;
+                if (isRollback) return 0;
+                // Fallback heuristic
+                if (snap > 100 && current > (snap * 0.95)) return 0;
+                return current;
             };
 
             const zk = calculateDiff(p.zombie_kills, snapshot?.zombie_kills || 0);
@@ -150,12 +165,27 @@ export async function endSeason(prevState: any, formData: FormData) {
         let csvContent = "SteamID,Name,Zombie Kills,Player Kills,Hours Survived,Economy Earned\n";
         
         currentPlayers.forEach(p => {
-            const snapshot = snapshots?.find(s => s.steam_id === p.steam_id64);
+            // Find snapshot: Try username first, then fallback to legacy steam_id
+            const snapshot = snapshots?.find(s => 
+                s.username === p.account_name || 
+                (!s.username && s.steam_id === p.steam_id64)
+            );
             
             // Helper to calculate diff with reset protection
+            // ROLLBACK DETECTION:
+            let isRollback = false;
+            const snapHours = snapshot?.hours_survived || 0;
+            if (p.hours_survived < snapHours && snapHours > 5) {
+                const ratio = p.hours_survived / snapHours;
+                if (ratio > 0.90) isRollback = true;
+            }
+
             const calculateDiff = (current: number, snap: number) => {
-                if (current < snap) return current;
-                return current - snap;
+                if (current >= snap) return current - snap;
+                if (isRollback) return 0;
+                // Fallback heuristic
+                if (snap > 100 && current > (snap * 0.95)) return 0;
+                return current;
             };
 
             const zk = calculateDiff(p.zombie_kills, snapshot?.zombie_kills || 0);
