@@ -1,11 +1,14 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { requireAdmin } from '@/utils/supabase/admin-check';
 import { revalidatePath } from 'next/cache';
 
 type State = { message: string; success: boolean } | null;
 
 export async function addToBlacklist(prevState: State, formData: FormData): Promise<State> {
+  try { await requireAdmin(); } catch (e: any) { return { message: e.message, success: false }; }
+  
   const username = formData.get('username') as string;
   const reason = formData.get('reason') as string;
 
@@ -34,6 +37,8 @@ export async function addToBlacklist(prevState: State, formData: FormData): Prom
 }
 
 export async function removeFromBlacklist(prevState: State, formData: FormData): Promise<State> {
+    try { await requireAdmin(); } catch (e: any) { return { message: e.message, success: false }; }
+    
     const id = formData.get('id') as string;
     
     if (!id) return { message: 'ID required', success: false };

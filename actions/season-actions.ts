@@ -2,9 +2,16 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { getLeaderboardData, Player } from '@/utils/leaderboard-data';
+import { requireAdmin } from '@/utils/supabase/admin-check';
 import { revalidatePath } from 'next/cache';
 
 export async function startNewSeason(prevState: any, formData: FormData) {
+  try {
+    await requireAdmin();
+  } catch (e: any) {
+     return { message: e.message, success: false };
+  }
+
   const name = formData.get('season_name') as string;
   const endDateStr = formData.get('end_date') as string;
   
@@ -136,6 +143,12 @@ export async function startNewSeason(prevState: any, formData: FormData) {
 }
 
 export async function endSeason(prevState: any, formData: FormData) {
+    try {
+      await requireAdmin();
+    } catch (e: any) {
+      return { message: e.message, success: false };
+    }
+
     const supabase = await createClient();
 
     try {
@@ -222,6 +235,12 @@ export async function endSeason(prevState: any, formData: FormData) {
 }
 
 export async function deleteSeason(prevState: any, formData: FormData) {
+    try {
+      await requireAdmin();
+    } catch (e: any) {
+      return { message: e.message, success: false };
+    }
+
     const id = formData.get('season_id') as string;
     if (!id) return { message: 'Season ID required', success: false };
 

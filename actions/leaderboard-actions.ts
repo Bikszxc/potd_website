@@ -1,9 +1,12 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { requireAdmin } from '@/utils/supabase/admin-check';
 import { revalidatePath } from 'next/cache';
 
 export async function toggleLeaderboard(id: string, enabled: boolean) {
+  try { await requireAdmin(); } catch (e: any) { return { message: e.message, success: false }; }
+  
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -22,6 +25,8 @@ export async function toggleLeaderboard(id: string, enabled: boolean) {
 }
 
 export async function updateFactionScoring(prevState: any, formData: FormData) {
+  try { await requireAdmin(); } catch (e: any) { return { message: e.message, success: false }; }
+
   const supabase = await createClient();
   
   const zombie_kill_multiplier = parseFloat(formData.get('zombie_kill_multiplier') as string);
