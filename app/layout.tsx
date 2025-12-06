@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from 'sonner';
+import NextTopLoader from 'nextjs-toploader';
 import ScrollIndicator from '@/components/scroll-indicator';
 import PineappleLoader from '@/components/pineapple-loader';
 import "./globals.css";
@@ -34,6 +35,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <NextTopLoader 
+          color="#FED405"
+          initialPosition={0.08}
+          crawlSpeed={200}
+          height={3}
+          crawl={true}
+          showSpinner={false}
+          easing="ease"
+          speed={200}
+          shadow="0 0 10px #FED405,0 0 5px #FED405"
+        />
         <PineappleLoader />
         {children}
         <ScrollIndicator />

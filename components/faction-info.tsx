@@ -347,8 +347,8 @@ function TopMemberCard({ member, category, subtext, value, icon: Icon, color }: 
         <div className={`bg-[#1a1c2e] border p-4 rounded flex items-center gap-4 transition-all group ${themeClass}`}>
             <div className="relative flex-shrink-0">
                 <img 
-                    src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.steam_name}&background=random&color=fff`}
-                    alt={member.steam_name}
+                    src={member.avatar_url || `https://ui-avatars.com/api/?name=${member.account_name}&background=random&color=fff`}
+                    alt={member.account_name}
                     className="w-12 h-12 rounded-full border border-white/10 group-hover:border-white/30 transition-colors"
                 />
                 <div className={`absolute -bottom-1 -right-1 bg-[#1a1c2e] rounded-full p-1 border ${themeClass.split(' ')[1]}`}>
@@ -357,7 +357,7 @@ function TopMemberCard({ member, category, subtext, value, icon: Icon, color }: 
             </div>
             <div className="min-w-0 flex-1">
                 <div className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 opacity-80`}>{category}</div>
-                <div className="text-white font-bold text-sm truncate">{member.steam_name}</div>
+                <div className="text-white font-bold text-sm truncate">{member.account_name}</div>
                 <div className="flex justify-between items-center mt-1">
                     <span className="text-[10px] text-gray-500 uppercase tracking-wide">{subtext}</span>
                     <span className="font-mono font-bold text-xs">{value}</span>
